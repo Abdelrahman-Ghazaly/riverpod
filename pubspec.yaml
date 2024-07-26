@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  hooks_riverpod: ^2.5.1
 
 dev_dependencies:
   flutter_test:
