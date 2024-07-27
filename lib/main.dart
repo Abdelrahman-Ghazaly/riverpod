@@ -13,14 +13,30 @@ class MainApp extends StatelessWidget {
     return ProviderScope(
       child: MaterialApp(
         theme: ThemeData.dark(),
-        home: HomePage(),
+        home: const HomePage(),
       ),
     );
   }
 }
 
-final currentDate = Provider(
-  (ref) => DateTime.now(),
+extension OptionalInfixAddition<T extends num> on T? {
+  T? operator +(T? other) {
+    final shadow = this;
+    if (shadow != null) {
+      return shadow + (other ?? 0) as T;
+    } else {
+      return null;
+    }
+  }
+}
+
+class Counter extends StateNotifier<int?> {
+  Counter() : super(null);
+  void increment() => state = state == null ? 1 : state + 1;
+}
+
+final counterProvider = StateNotifierProvider<Counter, int?>(
+  (ref) => Counter(),
 );
 
 class HomePage extends ConsumerWidget {
@@ -28,14 +44,21 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final date = ref.watch(currentDate);
     return Scaffold(
-      appBar: AppBar(title: Text('Hello World')),
-      body: Center(
-        child: Text(
-          date.toIso8601String(),
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
+      appBar: AppBar(title: const Text('Hello World')),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextButton(
+            onPressed: ref.read(counterProvider.notifier).increment,
+            child: const Text('Increment counter'),
+          ),
+          Consumer(
+            builder: (context, ref, child) => Text(
+              ref.watch(counterProvider).toString(),
+            ),
+          )
+        ],
       ),
     );
   }
