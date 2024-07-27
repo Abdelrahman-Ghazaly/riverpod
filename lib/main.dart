@@ -19,80 +19,71 @@ class MainApp extends StatelessWidget {
   }
 }
 
-enum City {
-  stockholm,
-  paris,
-  tokyo,
-  newYork, // causes an error
-}
+const names = [
+  'Alice',
+  'Bob',
+  'Charlie',
+  'Diana',
+  'Eve',
+  'Frank',
+  'Grace',
+  'Hank',
+  'Ivy',
+  'Jack',
+  'Karen',
+  'Leo',
+  'Mona',
+  'Nate',
+  'Olivia'
+];
 
-typedef WeatherEmoji = String;
-
-Future<WeatherEmoji> getWeather(City city) async {
-  return Future.delayed(
+final tickerProvider = StreamProvider(
+  (ref) => Stream.periodic(
     const Duration(seconds: 1),
-    () => {
-      City.stockholm: '❄️',
-      City.paris: '🍃',
-      City.tokyo: '🌦️',
-    }[city]!,
-  );
-}
-
-// UI writes and reads from this
-final currentCityProvider = StateProvider<City?>(
-  (ref) => null,
+    (i) => i + 1,
+  ),
 );
 
-// UI reads this
-final weatherProvider = FutureProvider<WeatherEmoji>(
-  (ref) {
-    final city = ref.watch(currentCityProvider);
-    if (city != null) {
-      return getWeather(city);
-    } else {
-      return 'unkown';
-    }
-  },
-);
+///! Depricated. Has smooth addition to the list and doesn't rebuil
+///! the whole [ListView], and the loading state.
+// final namesProvider = StreamProvider(
+//   (ref) => ref.watch(tickerProvider.stream).map(
+//         (count) => names.getRange(0, count).toList(),
+//       ),
+// );
+
+///! Current work around. Causes the entire list to be rebuit and
+///! the Loading satate is called with every rebuild.
+final namesProvider = FutureProvider<List<String>>((ref) async {
+  final count = await ref.watch(tickerProvider.future);
+  return names.getRange(0, count).toList();
+});
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentWeather = ref.watch(weatherProvider);
+    final names = ref.watch(namesProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Weather'),
+        title: const Text('StreamProvider'),
       ),
-      body: Column(
-        children: [
-          currentWeather.when(
-            data: (data) => Text(data),
-            error: (_, __) => const Text('Error'),
-            loading: () => const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: City.values.length,
-              itemBuilder: (BuildContext context, int index) {
-                final city = City.values[index];
-                final isSelected = city == ref.watch(currentCityProvider);
-                return ListTile(
-                  title: Text(city.toString()),
-                  trailing: isSelected ? const Icon(Icons.check) : null,
-                  onTap: () {
-                    ref.read(currentCityProvider.notifier).state = city;
-                  },
-                );
-              },
-            ),
-          )
-        ],
+      body: names.when(
+        data: (names) {
+          return ListView.builder(
+            itemCount: names.length,
+            itemBuilder: (BuildContext context, int index) {
+              return ListTile(
+                title: Text(names[index]),
+              );
+            },
+          );
+        },
+        error: (error, stackTrace) => const Center(
+          child: Text('Reached the end of the list'),
+        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
       ),
     );
   }
