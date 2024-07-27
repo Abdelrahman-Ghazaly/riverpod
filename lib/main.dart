@@ -19,24 +19,41 @@ class MainApp extends StatelessWidget {
   }
 }
 
-extension OptionalInfixAddition<T extends num> on T? {
-  T? operator +(T? other) {
-    final shadow = this;
-    if (shadow != null) {
-      return shadow + (other ?? 0) as T;
+enum City {
+  stockholm,
+  paris,
+  tokyo,
+  newYork, // causes an error
+}
+
+typedef WeatherEmoji = String;
+
+Future<WeatherEmoji> getWeather(City city) async {
+  return Future.delayed(
+    const Duration(seconds: 1),
+    () => {
+      City.stockholm: '❄️',
+      City.paris: '🍃',
+      City.tokyo: '🌦️',
+    }[city]!,
+  );
+}
+
+// UI writes and reads from this
+final currentCityProvider = StateProvider<City?>(
+  (ref) => null,
+);
+
+// UI reads this
+final weatherProvider = FutureProvider<WeatherEmoji>(
+  (ref) {
+    final city = ref.watch(currentCityProvider);
+    if (city != null) {
+      return getWeather(city);
     } else {
-      return null;
+      return 'unkown';
     }
-  }
-}
-
-class Counter extends StateNotifier<int?> {
-  Counter() : super(null);
-  void increment() => state = state == null ? 1 : state + 1;
-}
-
-final counterProvider = StateNotifierProvider<Counter, int?>(
-  (ref) => Counter(),
+  },
 );
 
 class HomePage extends ConsumerWidget {
@@ -44,18 +61,35 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentWeather = ref.watch(weatherProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Hello World')),
+      appBar: AppBar(
+        title: const Text('Weather'),
+      ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextButton(
-            onPressed: ref.read(counterProvider.notifier).increment,
-            child: const Text('Increment counter'),
+          currentWeather.when(
+            data: (data) => Text(data),
+            error: (_, __) => const Text('Error'),
+            loading: () => const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: CircularProgressIndicator(),
+            ),
           ),
-          Consumer(
-            builder: (context, ref, child) => Text(
-              ref.watch(counterProvider).toString(),
+          Expanded(
+            child: ListView.builder(
+              itemCount: City.values.length,
+              itemBuilder: (BuildContext context, int index) {
+                final city = City.values[index];
+                final isSelected = city == ref.watch(currentCityProvider);
+                return ListTile(
+                  title: Text(city.toString()),
+                  trailing: isSelected ? const Icon(Icons.check) : null,
+                  onTap: () {
+                    ref.read(currentCityProvider.notifier).state = city;
+                  },
+                );
+              },
             ),
           )
         ],
